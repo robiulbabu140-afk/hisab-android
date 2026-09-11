@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 class ApiException(message: String, val code: Int = -1) : Exception(message)
 
 /**
- * Thin JSON HTTP client for the Hisab web backend's `api/*.php` endpoints (see
+ * Thin JSON HTTP client for the Hisab web backend's `api` PHP endpoints (see
  * hisab-web/api/ and hisab-web/DEPLOY.md on the server side). Every call needs
  * [SyncPrefs.baseUrl] and [SyncPrefs.apiKey] to already be set — [SyncManager] checks
  * that before using this.

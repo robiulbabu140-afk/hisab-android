@@ -17,7 +17,7 @@ import org.json.JSONObject
 data class SyncResult(val success: Boolean, val message: String)
 
 /**
- * Reconciles this device's Room database with the web backend (hisab-web/api/*.php).
+ * Reconciles this device's Room database with the web backend (hisab-web's api PHP endpoints).
  *
  * Accounts/Categories: bidirectional, matched by name (both sides seed the same defaults
  * independently, so linking by name avoids duplicating them) — whichever side has a given
