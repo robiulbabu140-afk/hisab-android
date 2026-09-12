@@ -2,6 +2,8 @@ package com.hisab.app
 
 import android.content.Context
 import com.hisab.app.data.local.HisabDatabase
+import com.hisab.app.data.remote.ApiClient
+import com.hisab.app.data.remote.BusinessApi
 import com.hisab.app.data.remote.SyncManager
 import com.hisab.app.data.remote.SyncPrefs
 import com.hisab.app.data.repository.AccountRepository
@@ -29,4 +31,6 @@ class AppContainer(context: Context) {
 
     val syncPrefs = SyncPrefs(context)
     val syncManager = SyncManager(syncPrefs, accountRepository, categoryRepository, transactionRepository, smsRepository)
+    val apiClient = ApiClient(syncPrefs)
+    val businessApi = BusinessApi(apiClient)
 }

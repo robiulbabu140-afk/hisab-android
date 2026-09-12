@@ -10,10 +10,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,16 +29,36 @@ import com.hisab.app.data.local.Account
 import com.hisab.app.data.local.Category
 import com.hisab.app.data.local.CategoryKind
 import com.hisab.app.data.local.RawSms
+import com.hisab.app.data.local.RawSmsStatus
 import com.hisab.app.data.local.TxnSource
+import com.hisab.app.data.remote.BuyerDue
+import com.hisab.app.data.remote.ClientDue
+import com.hisab.app.data.remote.ManagedPersonDue
 import com.hisab.app.ui.LocalAppContainer
+import com.hisab.app.ui.components.ChipPicker
 import com.hisab.app.ui.components.EmptyState
 import com.hisab.app.ui.components.HisabCard
 import com.hisab.app.ui.components.ScreenHeader
 import com.hisab.app.ui.navigation.Dest
 import com.hisab.app.util.Money
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
-private enum class ReviewChoice { EXPENSE, INCOME, TRANSFER, NEUTRAL, IGNORE }
+private enum class ReviewChoice { EXPENSE, INCOME, TRANSFER, NEUTRAL, CLIENT_PAYMENT, DOLLAR_SALE_PAYMENT, MANAGED_RECEIVED, MANAGED_PAID, IGNORE }
+
+/** "Cash In"/"Deposit"/"Credit" -> money came in; "Cash Out"/"Withdrawal"/"Debit" -> money went
+ * out — same rule as the web dashboard's SMS Review, so only the choices that make sense for
+ * the SMS's actual direction are shown (a debit SMS can't be a Client Payment, say). */
+private fun smsDirectionIsCredit(detectedType: String?): Boolean? {
+    val t = detectedType?.lowercase() ?: return null
+    if (t.isBlank()) return null
+    if ("out" in t || "debit" in t || "withdraw" in t) return false
+    if ("in" in t || "credit" in t || "deposit" in t) return true
+    return null
+}
+
+private val CREDIT_CHOICES = setOf(ReviewChoice.INCOME, ReviewChoice.TRANSFER, ReviewChoice.NEUTRAL, ReviewChoice.CLIENT_PAYMENT, ReviewChoice.DOLLAR_SALE_PAYMENT, ReviewChoice.MANAGED_RECEIVED, ReviewChoice.IGNORE)
+private val DEBIT_CHOICES = setOf(ReviewChoice.EXPENSE, ReviewChoice.TRANSFER, ReviewChoice.NEUTRAL, ReviewChoice.MANAGED_PAID, ReviewChoice.IGNORE)
 
 @Composable
 fun SmsReviewScreen(navController: NavController) {
@@ -44,6 +66,16 @@ fun SmsReviewScreen(navController: NavController) {
     val pending by container.smsRepository.observePending().collectAsState(initial = emptyList())
     val accounts by container.accountRepository.observeAll().collectAsState(initial = emptyList())
     val categories by container.categoryRepository.observeAll().collectAsState(initial = emptyList())
+
+    var clients by remember { mutableStateOf<List<ClientDue>>(emptyList()) }
+    var buyers by remember { mutableStateOf<List<BuyerDue>>(emptyList()) }
+    var persons by remember { mutableStateOf<List<ManagedPersonDue>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        runCatching { clients = container.businessApi.getClientsWithDue() }
+        runCatching { buyers = container.businessApi.getBuyersWithDue() }
+        runCatching { persons = container.businessApi.getManagedPersons() }
+    }
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("SMS Review (${pending.size})", onBack = { navController.popBackStack() })
@@ -56,6 +88,9 @@ fun SmsReviewScreen(navController: NavController) {
                         raw = raw,
                         accounts = accounts,
                         categories = categories,
+                        clients = clients,
+                        buyers = buyers,
+                        persons = persons,
                         onOpenDetail = { navController.navigate(Dest.smsDetail(raw.id)) }
                     )
                 }
@@ -69,17 +104,40 @@ private fun SmsReviewRow(
     raw: RawSms,
     accounts: List<Account>,
     categories: List<Category>,
+    clients: List<ClientDue>,
+    buyers: List<BuyerDue>,
+    persons: List<ManagedPersonDue>,
     onOpenDetail: () -> Unit
 ) {
     val container = LocalAppContainer.current
     val scope = rememberCoroutineScope()
 
-    var choice by remember(raw.id) { mutableStateOf(ReviewChoice.EXPENSE) }
-    var accountId by remember(raw.id) { mutableStateOf<Long?>(accounts.firstOrNull()?.id) }
+    val isCredit = remember(raw.id) { smsDirectionIsCredit(raw.detectedType) }
+    val visibleChoices = remember(isCredit) {
+        when (isCredit) {
+            true -> ReviewChoice.values().filter { it in CREDIT_CHOICES }
+            false -> ReviewChoice.values().filter { it in DEBIT_CHOICES }
+            null -> ReviewChoice.values().toList()
+        }
+    }
+
+    var choice by remember(raw.id) { mutableStateOf(if (isCredit == false) ReviewChoice.EXPENSE else ReviewChoice.INCOME) }
+    var accountId by remember(raw.id) {
+        val guess = accounts.filter { acc ->
+            val n = acc.name.trim().lowercase()
+            val s = raw.sender.trim().lowercase()
+            s.isNotBlank() && (n.contains(s) || s.contains(n))
+        }
+        mutableStateOf(if (guess.size == 1) guess[0].id else accounts.firstOrNull()?.id)
+    }
     var toAccountId by remember(raw.id) { mutableStateOf<Long?>(null) }
     var categoryId by remember(raw.id) { mutableStateOf<Long?>(null) }
-    var isInflow by remember(raw.id) { mutableStateOf(false) }
+    var isInflow by remember(raw.id) { mutableStateOf(isCredit != false) }
+    var clientId by remember(raw.id) { mutableStateOf<Long?>(null) }
+    var buyerName by remember(raw.id) { mutableStateOf<String?>(null) }
+    var personId by remember(raw.id) { mutableStateOf<Long?>(null) }
     var error by remember(raw.id) { mutableStateOf<String?>(null) }
+    var submitting by remember(raw.id) { mutableStateOf(false) }
 
     HisabCard(modifier = Modifier.padding(bottom = 14.dp)) {
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
@@ -88,14 +146,11 @@ private fun SmsReviewRow(
         Text(Money.format(raw.amountMinor), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
 
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            listOf(
-                ReviewChoice.EXPENSE, ReviewChoice.INCOME, ReviewChoice.TRANSFER,
-                ReviewChoice.NEUTRAL, ReviewChoice.IGNORE
-            ).forEach { c ->
+            visibleChoices.forEach { c ->
                 FilterChip(
                     selected = choice == c,
                     onClick = { choice = c; categoryId = null },
-                    label = { Text(c.name) },
+                    label = { Text(c.name.replace('_', ' ')) },
                     modifier = Modifier.padding(end = 8.dp)
                 )
             }
@@ -123,6 +178,23 @@ private fun SmsReviewRow(
                     if (isInflow) 0L else 1L
                 ) { isInflow = it == 0L }
             }
+            ReviewChoice.CLIENT_PAYMENT -> {
+                ChipPicker("Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                ChipPicker("Client", clients.map { it.id to "${it.name} (Due ${Money.format(it.dueMinor)})" }, clientId) { clientId = it }
+            }
+            ReviewChoice.DOLLAR_SALE_PAYMENT -> {
+                ChipPicker("Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                val buyersWithDue = buyers.filter { it.dueMinor > 0 }
+                ChipPicker(
+                    "Buyer",
+                    buyersWithDue.mapIndexed { i, b -> i.toLong() to "${b.buyerName} (Due ${Money.format(b.dueMinor)})" },
+                    buyersWithDue.indexOfFirst { it.buyerName == buyerName }.takeIf { it >= 0 }?.toLong()
+                ) { idx -> buyerName = buyersWithDue.getOrNull(idx.toInt())?.buyerName }
+            }
+            ReviewChoice.MANAGED_RECEIVED, ReviewChoice.MANAGED_PAID -> {
+                ChipPicker("Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                ChipPicker("Person", persons.map { it.id to it.name }, personId) { personId = it }
+            }
             ReviewChoice.IGNORE -> {}
         }
 
@@ -131,7 +203,7 @@ private fun SmsReviewRow(
         }
 
         Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
-            Button(onClick = {
+            Button(enabled = !submitting, onClick = {
                 scope.launch {
                     val now = raw.timestampMillis
                     when (choice) {
@@ -156,26 +228,49 @@ private fun SmsReviewRow(
                             if (acc == null) { error = "Account বেছে নিন"; return@launch }
                             container.transactionRepository.recordNeutral(acc, raw.amountMinor, isInflow, raw.detectedType, now, TxnSource.SMS, raw.id)
                         }
+                        ReviewChoice.CLIENT_PAYMENT, ReviewChoice.DOLLAR_SALE_PAYMENT, ReviewChoice.MANAGED_RECEIVED, ReviewChoice.MANAGED_PAID -> {
+                            val acc = accountId
+                            if (acc == null) { error = "Account বেছে নিন"; return@launch }
+                            if (choice == ReviewChoice.CLIENT_PAYMENT && clientId == null) { error = "Client বেছে নিন"; return@launch }
+                            if (choice == ReviewChoice.DOLLAR_SALE_PAYMENT && buyerName == null) { error = "Buyer বেছে নিন"; return@launch }
+                            if ((choice == ReviewChoice.MANAGED_RECEIVED || choice == ReviewChoice.MANAGED_PAID) && personId == null) { error = "Person বেছে নিন"; return@launch }
+
+                            submitting = true
+                            try {
+                                if (!container.syncPrefs.isConfigured()) { error = "Backend URL/API Key সেট করা হয়নি — Settings-এ দিন"; return@launch }
+                                container.syncManager.sync()
+                                val freshRaw = container.smsRepository.getById(raw.id)
+                                val rawRemoteId = freshRaw?.remoteId
+                                val accountRemoteId = container.accountRepository.getById(acc)?.remoteId
+                                if (rawRemoteId == null || accountRemoteId == null) { error = "Sync ব্যর্থ হয়েছে, আবার চেষ্টা করুন"; return@launch }
+
+                                val body = JSONObject()
+                                    .put("action", "confirm")
+                                    .put("raw_sms_id", rawRemoteId)
+                                    .put("account_id", accountRemoteId)
+                                when (choice) {
+                                    ReviewChoice.CLIENT_PAYMENT -> body.put("choice", "client_payment").put("client_id", clientId)
+                                    ReviewChoice.DOLLAR_SALE_PAYMENT -> body.put("choice", "dollar_sale_payment").put("buyer_name", buyerName)
+                                    ReviewChoice.MANAGED_RECEIVED -> body.put("choice", "managed_received").put("person_id", personId)
+                                    ReviewChoice.MANAGED_PAID -> body.put("choice", "managed_paid").put("person_id", personId)
+                                    else -> {}
+                                }
+                                container.apiClient.postForObject("sms.php", body)
+                                container.smsRepository.updateStatus(freshRaw, RawSmsStatus.CONFIRMED)
+                            } catch (e: Exception) {
+                                error = "ব্যর্থ: ${e.message ?: e.javaClass.simpleName}"
+                                return@launch
+                            } finally {
+                                submitting = false
+                            }
+                        }
                     }
                     error = null
                 }
-            }) { Text("Confirm & Next") }
+            }) {
+                if (submitting) CircularProgressIndicator(modifier = Modifier.padding(end = 6.dp)) else Text("Confirm & Next")
+            }
             Button(onClick = onOpenDetail, modifier = Modifier.padding(start = 8.dp)) { Text("Details") }
-        }
-    }
-}
-
-@Composable
-private fun ChipPicker(label: String, options: List<Pair<Long, String>>, selectedId: Long?, onSelect: (Long) -> Unit) {
-    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-        options.forEach { (id, text) ->
-            FilterChip(
-                selected = selectedId == id,
-                onClick = { onSelect(id) },
-                label = { Text(text) },
-                modifier = Modifier.padding(end = 8.dp)
-            )
         }
     }
 }

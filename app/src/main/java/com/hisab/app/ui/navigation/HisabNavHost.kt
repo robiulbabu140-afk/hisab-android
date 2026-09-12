@@ -83,6 +83,9 @@ fun HisabNavHost() {
             composable(Dest.REPORTS) { ReportsStubScreen() }
             composable(Dest.MORE) { MoreScreen(navController) }
             composable(Dest.SETTINGS) { SettingsScreen(navController) }
+            composable(Dest.CLIENTS) { ClientsScreen(navController) }
+            composable(Dest.DOLLAR_SALES) { DollarSalesScreen(navController) }
+            composable(Dest.MANAGED) { ManagedScreen(navController) }
         }
     }
 }

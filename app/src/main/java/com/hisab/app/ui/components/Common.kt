@@ -2,6 +2,7 @@ package com.hisab.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,12 +11,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -181,6 +184,21 @@ fun SectionHeader(title: String, action: String? = null, onAction: (() -> Unit)?
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = onAction?.let { Modifier.clickable(onClick = it) } ?: Modifier
+            )
+        }
+    }
+}
+
+@Composable
+fun ChipPicker(label: String, options: List<Pair<Long, String>>, selectedId: Long?, onSelect: (Long) -> Unit) {
+    Text(label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+        options.forEach { (id, text) ->
+            FilterChip(
+                selected = selectedId == id,
+                onClick = { onSelect(id) },
+                label = { Text(text) },
+                modifier = Modifier.padding(end = 8.dp)
             )
         }
     }

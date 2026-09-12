@@ -21,6 +21,9 @@ fun MoreScreen(navController: NavController) {
         Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
             MoreRow("💳", "Accounts", "Manage all balances") { navController.navigate(Dest.ACCOUNTS) }
             MoreRow("🏷️", "Categories", "Customize your categories") { navController.navigate(Dest.CATEGORIES) }
+            MoreRow("👤", "Clients (Boosting)", "Due ও payment রেকর্ড করুন") { navController.navigate(Dest.CLIENTS) }
+            MoreRow("💵", "Dollar Sale Buyers", "Due ও payment রেকর্ড করুন") { navController.navigate(Dest.DOLLAR_SALES) }
+            MoreRow("🤝", "Managed Money", "Received/Paid এন্ট্রি করুন") { navController.navigate(Dest.MANAGED) }
             MoreRow("⚙️", "Settings", "App preferences") { navController.navigate(Dest.SETTINGS) }
         }
     }

@@ -17,6 +17,9 @@ object Dest {
     const val REPORTS = "reports"
     const val MORE = "more"
     const val SETTINGS = "settings"
+    const val CLIENTS = "clients"
+    const val DOLLAR_SALES = "dollarSales"
+    const val MANAGED = "managed"
 
     fun transactionDetail(id: Long) = "transactionDetail/$id"
     fun smsDetail(id: Long) = "smsDetail/$id"
