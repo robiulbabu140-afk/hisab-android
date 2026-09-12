@@ -14,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -42,6 +43,10 @@ import java.util.Calendar
 fun DashboardScreen(navController: NavController) {
     val container = LocalAppContainer.current
     val coroutineScope = rememberCoroutineScope()
+
+    // Dashboard খোলা মানেই ওয়েবে কিছু নতুন হয়ে থাকলে সেটা এখনই টেনে আনার একটা সুযোগ — নিঃশব্দে,
+    // ব্যর্থ হলেও কোনো error দেখানো হয় না যেহেতু background periodic sync তো আছেই।
+    LaunchedEffect(Unit) { container.syncInBackground() }
 
     val monthStartMillis = remember {
         Calendar.getInstance().apply {

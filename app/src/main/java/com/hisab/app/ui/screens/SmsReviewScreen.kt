@@ -121,14 +121,22 @@ private fun SmsReviewRow(
         }
     }
 
+    // sender ("EBL") -> every account whose name contains it ("Ebl bank parsonal", "ebl
+    // business") — narrows the picker to just those candidates instead of the full account
+    // list, same as the web dashboard's SMS Review. Falls back to the full list when nothing
+    // matches, so the picker is never left empty.
+    val matchedAccounts = remember(raw.id, accounts) {
+        val s = raw.sender.trim().lowercase()
+        if (s.isBlank()) emptyList() else accounts.filter { acc ->
+            val n = acc.name.trim().lowercase()
+            n.contains(s) || s.contains(n)
+        }
+    }
+    val accountOptions = if (matchedAccounts.isNotEmpty()) matchedAccounts else accounts
+
     var choice by remember(raw.id) { mutableStateOf(if (isCredit == false) ReviewChoice.EXPENSE else ReviewChoice.INCOME) }
     var accountId by remember(raw.id) {
-        val guess = accounts.filter { acc ->
-            val n = acc.name.trim().lowercase()
-            val s = raw.sender.trim().lowercase()
-            s.isNotBlank() && (n.contains(s) || s.contains(n))
-        }
-        mutableStateOf(if (guess.size == 1) guess[0].id else accounts.firstOrNull()?.id)
+        mutableStateOf(if (matchedAccounts.size == 1) matchedAccounts[0].id else null)
     }
     var toAccountId by remember(raw.id) { mutableStateOf<Long?>(null) }
     var categoryId by remember(raw.id) { mutableStateOf<Long?>(null) }
@@ -159,7 +167,7 @@ private fun SmsReviewRow(
         when (choice) {
             ReviewChoice.EXPENSE, ReviewChoice.INCOME -> {
                 val kind = if (choice == ReviewChoice.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE
-                ChipPicker("Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                ChipPicker("Account", accountOptions.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
                 ChipPicker(
                     "Category",
                     categories.filter { it.kind == kind }.map { it.id to "${it.icon} ${it.name}" },
@@ -167,11 +175,11 @@ private fun SmsReviewRow(
                 ) { categoryId = it }
             }
             ReviewChoice.TRANSFER -> {
-                ChipPicker("From Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                ChipPicker("From Account", accountOptions.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
                 ChipPicker("To Account", accounts.map { it.id to "${it.icon} ${it.name}" }, toAccountId) { toAccountId = it }
             }
             ReviewChoice.NEUTRAL -> {
-                ChipPicker("Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                ChipPicker("Account", accountOptions.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
                 ChipPicker(
                     "Direction",
                     listOf(0L to "Money In", 1L to "Money Out"),
@@ -179,11 +187,11 @@ private fun SmsReviewRow(
                 ) { isInflow = it == 0L }
             }
             ReviewChoice.CLIENT_PAYMENT -> {
-                ChipPicker("Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                ChipPicker("Account", accountOptions.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
                 ChipPicker("Client", clients.map { it.id to "${it.name} (Due ${Money.format(it.dueMinor)})" }, clientId) { clientId = it }
             }
             ReviewChoice.DOLLAR_SALE_PAYMENT -> {
-                ChipPicker("Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                ChipPicker("Account", accountOptions.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
                 val buyersWithDue = buyers.filter { it.dueMinor > 0 }
                 ChipPicker(
                     "Buyer",
@@ -192,7 +200,7 @@ private fun SmsReviewRow(
                 ) { idx -> buyerName = buyersWithDue.getOrNull(idx.toInt())?.buyerName }
             }
             ReviewChoice.MANAGED_RECEIVED, ReviewChoice.MANAGED_PAID -> {
-                ChipPicker("Account", accounts.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
+                ChipPicker("Account", accountOptions.map { it.id to "${it.icon} ${it.name}" }, accountId) { accountId = it }
                 ChipPicker("Person", persons.map { it.id to it.name }, personId) { personId = it }
             }
             ReviewChoice.IGNORE -> {}
@@ -266,6 +274,9 @@ private fun SmsReviewRow(
                         }
                     }
                     error = null
+                    // Confirm করার সাথে সাথেই push — 15 মিনিটের পরবর্তী background sync-এর
+                    // জন্য অপেক্ষা করতে হবে না, ওয়েব ড্যাশবোর্ডে প্রায় সাথে সাথেই দেখা যাবে।
+                    container.syncInBackground()
                 }
             }) {
                 if (submitting) CircularProgressIndicator(modifier = Modifier.padding(end = 6.dp)) else Text("Confirm & Next")

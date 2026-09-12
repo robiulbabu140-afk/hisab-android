@@ -24,8 +24,10 @@ class SyncPrefs(context: Context) {
         get() = prefs.getLong(KEY_LAST_SYNC, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_SYNC, value).apply()
 
+    // ডিফল্ট true — নতুন ইনস্টলেই automatic sync চালু থাকবে, আলাদা করে Settings-এ গিয়ে
+    // চালু করতে হবে না। Settings থেকে বন্ধ করে দিলে সেটাই মনে রাখা হবে।
     var autoSyncEnabled: Boolean
-        get() = prefs.getBoolean(KEY_AUTO_SYNC, false)
+        get() = prefs.getBoolean(KEY_AUTO_SYNC, true)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_SYNC, value).apply()
 
     fun isConfigured(): Boolean = baseUrl.isNotBlank() && apiKey.isNotBlank()

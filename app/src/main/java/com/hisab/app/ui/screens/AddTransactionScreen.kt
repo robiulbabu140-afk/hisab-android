@@ -137,6 +137,7 @@ fun AddTransactionScreen(navController: NavController) {
                                         accountId, categoryId, amountMinor, note.ifBlank { null }, now, TxnSource.MANUAL
                                     )
                                 }
+                                container.syncInBackground()
                                 navController.popBackStack()
                             }
                         }

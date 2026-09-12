@@ -90,6 +90,7 @@ fun TransferScreen(navController: NavController) {
                                 container.transactionRepository.recordTransfer(
                                     from, to, amount, null, System.currentTimeMillis(), TxnSource.MANUAL
                                 )
+                                container.syncInBackground()
                                 navController.popBackStack()
                             }
                         }

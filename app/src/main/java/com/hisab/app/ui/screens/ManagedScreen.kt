@@ -122,6 +122,7 @@ private fun PersonRow(person: ManagedPersonDue, onSaved: () -> Unit) {
                                 container.businessApi.recordManagedPaid(person.id, remoteAccountId, amountMinor, null)
                             }
                             expanded = false; amount = ""; error = null
+                            container.syncInBackground()
                             onSaved()
                         } catch (e: Exception) {
                             error = "ব্যর্থ: ${e.message ?: e.javaClass.simpleName}"

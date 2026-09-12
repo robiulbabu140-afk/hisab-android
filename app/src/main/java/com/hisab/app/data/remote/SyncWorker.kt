@@ -22,7 +22,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         private const val UNIQUE_WORK_NAME = "hisab_periodic_sync"
 
         fun enable(context: Context) {
-            val request = PeriodicWorkRequestBuilder<SyncWorker>(30, TimeUnit.MINUTES)
+            // ১৫ মিনিট Android WorkManager-এর সবচেয়ে ঘন ঘন allowed periodic interval — এর
+            // চেয়ে কম দেওয়া সম্ভব না (OS-level battery restriction), তাই এটাই সবচেয়ে "automatic"
+            // background sync।
+            val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
             WorkManager.getInstance(context)

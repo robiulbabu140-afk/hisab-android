@@ -90,6 +90,7 @@ fun NeutralScreen(navController: NavController) {
                                 container.transactionRepository.recordNeutral(
                                     acc, amount, isInflow, reason.ifBlank { null }, System.currentTimeMillis(), TxnSource.MANUAL
                                 )
+                                container.syncInBackground()
                                 navController.popBackStack()
                             }
                         }

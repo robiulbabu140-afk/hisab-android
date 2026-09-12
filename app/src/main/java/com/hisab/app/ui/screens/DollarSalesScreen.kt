@@ -110,6 +110,7 @@ private fun BuyerRow(buyer: BuyerDue, onPaid: () -> Unit) {
                             if (remoteAccountId == null) { error = "Account sync হয়নি — আগে Settings থেকে Sync করুন"; return@launch }
                             container.businessApi.recordDollarSalePayment(buyer.buyerName, remoteAccountId, amountMinor, null)
                             expanded = false; amount = ""; error = null
+                            container.syncInBackground()
                             onPaid()
                         } catch (e: Exception) {
                             error = "ব্যর্থ: ${e.message ?: e.javaClass.simpleName}"

@@ -13,6 +13,7 @@ import com.hisab.app.data.repository.TransactionRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Hand-rolled dependency container (no Hilt) so the dependency graph is easy to read and
@@ -33,4 +34,16 @@ class AppContainer(context: Context) {
     val syncManager = SyncManager(syncPrefs, accountRepository, categoryRepository, transactionRepository, smsRepository)
     val apiClient = ApiClient(syncPrefs)
     val businessApi = BusinessApi(apiClient)
+
+    /**
+     * Fire-and-forget sync using the app-level [appScope] instead of a screen's own
+     * `rememberCoroutineScope()` — the latter gets cancelled the moment its composable leaves
+     * composition (e.g. right after `navController.popBackStack()`), which would kill an
+     * in-flight sync call before it finishes. This is what every screen should call for an
+     * immediate "push what I just did" sync right after a local write.
+     */
+    fun syncInBackground() {
+        if (!syncPrefs.isConfigured()) return
+        appScope.launch { runCatching { syncManager.sync() } }
+    }
 }
