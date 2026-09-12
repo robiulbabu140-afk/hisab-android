@@ -10,12 +10,14 @@ import android.content.Context
 class SyncPrefs(context: Context) {
     private val prefs = context.getSharedPreferences("hisab_sync_prefs", Context.MODE_PRIVATE)
 
+    // বিল্ট-ইন ডিফল্ট — নতুন ইনস্টলেই কাজ করবে, প্রতিবার হাতে বসাতে হবে না। Settings থেকে
+    // বদলে দিলে সেটাই SharedPreferences-এ সেভ থাকবে, এই ডিফল্ট শুধু প্রথমবারের জন্য প্রযোজ্য।
     var baseUrl: String
-        get() = prefs.getString(KEY_BASE_URL, "") ?: ""
+        get() = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
         set(value) = prefs.edit().putString(KEY_BASE_URL, value.trim().trimEnd('/')).apply()
 
     var apiKey: String
-        get() = prefs.getString(KEY_API_KEY, "") ?: ""
+        get() = prefs.getString(KEY_API_KEY, DEFAULT_API_KEY) ?: DEFAULT_API_KEY
         set(value) = prefs.edit().putString(KEY_API_KEY, value.trim()).apply()
 
     var lastSyncMillis: Long
@@ -33,5 +35,7 @@ class SyncPrefs(context: Context) {
         private const val KEY_API_KEY = "api_key"
         private const val KEY_LAST_SYNC = "last_sync_millis"
         private const val KEY_AUTO_SYNC = "auto_sync_enabled"
+        private const val DEFAULT_BASE_URL = "https://hisab.prothom.shop"
+        private const val DEFAULT_API_KEY = "446bba8f9be23f3a697dd053b2c472a11207317f6bf0fa1bb898cd1de3019a4e"
     }
 }
