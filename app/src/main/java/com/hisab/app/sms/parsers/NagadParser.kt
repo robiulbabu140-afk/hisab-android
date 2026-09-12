@@ -19,7 +19,8 @@ class NagadParser : SmsParser {
             provider = SmsProvider.NAGAD,
             detectedType = detectedType,
             amountMinor = amountMinor,
-            reference = extractReference(body)
+            reference = extractReference(body),
+            balanceAfterMinor = extractBalanceAfterMinor(body)
         )
     }
 }

@@ -26,7 +26,8 @@ class BkashParser : SmsParser {
             provider = SmsProvider.BKASH,
             detectedType = detectedType,
             amountMinor = amountMinor,
-            reference = extractReference(body)
+            reference = extractReference(body),
+            balanceAfterMinor = extractBalanceAfterMinor(body)
         )
     }
 }

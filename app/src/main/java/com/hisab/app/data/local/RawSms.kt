@@ -20,6 +20,8 @@ data class RawSms(
     val amountMinor: Long,
     val timestampMillis: Long,
     val reference: String?,
+    /** The account's balance right after this transaction, per the SMS itself — null if it didn't state one. Used for gap detection when the SMS is confirmed. */
+    val balanceAfterMinor: Long? = null,
     val dedupHash: String,
     val status: RawSmsStatus = RawSmsStatus.PENDING,
     val linkedTransactionId: Long? = null,

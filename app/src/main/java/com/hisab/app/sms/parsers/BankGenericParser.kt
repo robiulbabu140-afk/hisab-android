@@ -32,7 +32,8 @@ class BankGenericParser : SmsParser {
             provider = SmsProvider.BANK,
             detectedType = "${bankLabel(sender)} $action".trim(),
             amountMinor = amountMinor,
-            reference = extractReference(body)
+            reference = extractReference(body),
+            balanceAfterMinor = extractBalanceAfterMinor(body)
         )
     }
 

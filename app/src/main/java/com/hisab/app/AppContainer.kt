@@ -25,6 +25,7 @@ class AppContainer(context: Context) {
     val categoryRepository = CategoryRepository(database.categoryDao())
     val smsRepository = SmsRepository(database.rawSmsDao())
     val transactionRepository = TransactionRepository(database)
+    val balanceGapDao = database.balanceGapDao()
 
     val syncPrefs = SyncPrefs(context)
     val syncManager = SyncManager(syncPrefs, accountRepository, categoryRepository, transactionRepository, smsRepository)

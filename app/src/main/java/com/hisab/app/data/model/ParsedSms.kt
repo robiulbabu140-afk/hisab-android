@@ -7,7 +7,9 @@ data class ParsedSms(
     val provider: SmsProvider,
     val detectedType: String,
     val amountMinor: Long,
-    val reference: String?
+    val reference: String?,
+    /** The account's balance right after this transaction, per the SMS itself — used for gap detection. Null if the SMS didn't state one. */
+    val balanceAfterMinor: Long? = null
 ) {
     /**
      * Stable dedup key independent of exact delivery timestamp (historical inbox import and

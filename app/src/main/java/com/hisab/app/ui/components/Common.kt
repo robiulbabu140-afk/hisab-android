@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,9 +23,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.hisab.app.data.local.TxnType
+import com.hisab.app.ui.theme.HisabGradientColors
 import com.hisab.app.ui.theme.HisabGreen
 import com.hisab.app.ui.theme.HisabMuted
 import com.hisab.app.ui.theme.HisabRed
@@ -34,7 +40,7 @@ import com.hisab.app.util.Money
 fun HisabCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(Modifier.padding(16.dp), content = content)
@@ -60,11 +66,62 @@ fun ScreenHeader(title: String, onBack: (() -> Unit)? = null, trailing: @Composa
     }
 }
 
+/** The app's signature moment — a gradient hero card for "Total Available Balance", with up to
+ * three compact sub-figures underneath (e.g. This Month Income/Expense/Managed). Mirrors the
+ * web dashboard's .dbalance card exactly so the app and the web read as one product. */
 @Composable
-fun StatTile(label: String, valueMinor: Long, valueColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface, modifier: Modifier = Modifier) {
+fun GradientBalanceCard(label: String, amountMinor: Long, subItems: List<Pair<String, Long>> = emptyList()) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.linearGradient(colors = HisabGradientColors, start = Offset(0f, 0f), end = Offset(600f, 600f)),
+                RoundedCornerShape(24.dp)
+            )
+            .padding(22.dp)
+    ) {
+        Column {
+            Text(label.uppercase(), color = Color.White.copy(alpha = 0.82f), style = MaterialTheme.typography.bodySmall)
+            Text(
+                Money.format(amountMinor),
+                color = Color.White,
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 32.sp),
+                modifier = Modifier.padding(top = 8.dp, bottom = if (subItems.isEmpty()) 0.dp else 16.dp)
+            )
+            if (subItems.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                    subItems.forEach { (subLabel, subAmount) ->
+                        Column {
+                            Text(subLabel, color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
+                            Text(Money.format(subAmount), color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A compact metric card with a small leading icon badge — e.g. This Month's Income/Expense. */
+@Composable
+fun StatTile(
+    label: String,
+    valueMinor: Long,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    icon: String? = null,
+    modifier: Modifier = Modifier
+) {
     HisabCard(modifier = modifier) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = HisabMuted)
-        Text(Money.format(valueMinor), style = MaterialTheme.typography.titleMedium, color = valueColor)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.bodySmall, color = HisabMuted)
+            if (icon != null) {
+                Box(
+                    modifier = Modifier.size(26.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(9.dp)),
+                    contentAlignment = Alignment.Center
+                ) { Text(icon, style = MaterialTheme.typography.bodySmall) }
+            }
+        }
+        Text(Money.format(valueMinor), style = MaterialTheme.typography.titleMedium, color = valueColor, modifier = Modifier.padding(top = 6.dp))
     }
 }
 
@@ -97,8 +154,8 @@ fun TransactionRow(
     ) {
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)),
+                .size(44.dp)
+                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
             contentAlignment = Alignment.Center
         ) { Text(icon) }
         Column(Modifier.weight(1f)) {
@@ -112,7 +169,7 @@ fun TransactionRow(
 @Composable
 fun SectionHeader(title: String, action: String? = null, onAction: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

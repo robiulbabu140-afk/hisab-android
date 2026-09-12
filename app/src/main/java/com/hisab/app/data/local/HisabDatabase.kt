@@ -10,8 +10,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 @Database(
-    entities = [Account::class, Category::class, RawSms::class, Transaction::class, CustomRule::class],
-    version = 2,
+    entities = [Account::class, Category::class, RawSms::class, Transaction::class, CustomRule::class, BalanceGap::class],
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -21,6 +21,7 @@ abstract class HisabDatabase : RoomDatabase() {
     abstract fun rawSmsDao(): RawSmsDao
     abstract fun transactionDao(): TransactionDao
     abstract fun customRuleDao(): CustomRuleDao
+    abstract fun balanceGapDao(): BalanceGapDao
 
     companion object {
         @Volatile private var instance: HisabDatabase? = null

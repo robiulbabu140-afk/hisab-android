@@ -23,6 +23,7 @@ class SmsRepository(private val dao: RawSmsDao) {
                 amountMinor = parsed.amountMinor,
                 timestampMillis = timestampMillis,
                 reference = parsed.reference,
+                balanceAfterMinor = parsed.balanceAfterMinor,
                 dedupHash = parsed.dedupHash(sender, timestampMillis)
             )
         )
