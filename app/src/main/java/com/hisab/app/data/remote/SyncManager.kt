@@ -69,6 +69,7 @@ class SyncManager(
         val remoteAccounts = api.getArray("accounts.php").toObjectList()
         val remoteByName = remoteAccounts.associateBy { it.getString("name").trim().lowercase() }
 
+        val pushedThisRound = HashSet<Long>()
         for (local in accountRepository.getUnsynced()) {
             val match = remoteByName[local.name.trim().lowercase()]
             val remoteId = match?.getLong("id") ?: api.postForObject(
@@ -76,6 +77,7 @@ class SyncManager(
                 JSONObject().put("name", local.name).put("type", local.type.name).put("icon", local.icon)
             ).getLong("id")
             accountRepository.markSynced(local, remoteId)
+            pushedThisRound += remoteId
         }
 
         // Already-linked accounts: pick up a name/type/icon edit made from the web dashboard.
@@ -112,6 +114,17 @@ class SyncManager(
             )
             seenRemoteIds += remoteId
             seenNames += name
+        }
+
+        // An account this device already has (by remoteId) that's no longer in the server's
+        // list was archived/removed there (a stale demo/duplicate account cleaned up on the web
+        // dashboard) — hide it here too, instead of it lingering on the phone forever (accounts,
+        // unlike transactions, are never actually deleted server-side, only archived, so this
+        // mirrors that with a local archive rather than a hard delete).
+        val remoteIdsNow = remoteAccounts.map { it.getLong("id") }.toHashSet() + pushedThisRound
+        for (local in accountRepository.getAllOnce()) {
+            val remoteId = local.remoteId ?: continue
+            if (remoteId !in remoteIdsNow) accountRepository.update(local.copy(isArchived = true))
         }
     }
 

@@ -24,6 +24,7 @@ fun MoreScreen(navController: NavController) {
             MoreRow("👤", "Clients (Boosting)", "Due ও payment রেকর্ড করুন") { navController.navigate(Dest.CLIENTS) }
             MoreRow("💵", "Dollar Sale Buyers", "Due ও payment রেকর্ড করুন") { navController.navigate(Dest.DOLLAR_SALES) }
             MoreRow("🤝", "Managed Money", "Received/Paid এন্ট্রি করুন") { navController.navigate(Dest.MANAGED) }
+            MoreRow("🏦", "Dollar Suppliers", "Purchase ও Payment রেকর্ড করুন") { navController.navigate(Dest.SUPPLIERS) }
             MoreRow("⚙️", "Settings", "App preferences") { navController.navigate(Dest.SETTINGS) }
         }
     }

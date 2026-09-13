@@ -28,4 +28,14 @@ object Money {
         val taka = cleaned.toDoubleOrNull() ?: return null
         return Math.round(taka * 100)
     }
+
+    /** Formats dollar-cents as "$1,000.00" — mirrors the web's Money::formatDollars(). */
+    fun formatDollars(cents: Long): String {
+        val negative = cents < 0
+        val dollars = kotlin.math.abs(cents) / 100.0
+        return (if (negative) "-$" else "$") + "%,.2f".format(dollars)
+    }
+
+    /** Formats a poisha-per-dollar rate as "৳140.00/$". */
+    fun formatRate(rateMinor: Long): String = format(rateMinor) + "/$"
 }
