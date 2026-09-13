@@ -149,6 +149,38 @@ class TransactionRepository(private val db: HisabDatabase) {
 
     suspend fun getUnsynced(): List<Transaction> = db.transactionDao().getUnsynced()
     suspend fun getSyncedRemoteIds(): List<Long> = db.transactionDao().getSyncedRemoteIds()
+    suspend fun getAllSynced(): List<Transaction> = db.transactionDao().getAllSynced()
+    suspend fun getBetween(startMillis: Long, endMillis: Long): List<Transaction> =
+        db.transactionDao().getBetween(startMillis, endMillis)
+
+    /**
+     * Mirrors this device onto a transaction that was deleted on the web dashboard (Edit Mode's
+     * Delete button, or a full wipe): reverses its balance effect the same way [recordIncome] et
+     * al. applied it, frees the raw SMS it came from back to PENDING so it can be reviewed again,
+     * then removes the row — same reversal switch as the PHP side's Ledger::deleteTransaction.
+     */
+    suspend fun deleteGoneFromServer(txn: Transaction): Unit = db.withTransaction {
+        when (txn.type) {
+            TxnType.INCOME -> db.accountDao().adjustBalance(txn.accountId, -txn.amountMinor)
+            TxnType.EXPENSE -> db.accountDao().adjustBalance(txn.accountId, txn.amountMinor)
+            TxnType.TRANSFER -> {
+                db.accountDao().adjustBalance(txn.accountId, txn.amountMinor)
+                txn.toAccountId?.let { db.accountDao().adjustBalance(it, -txn.amountMinor) }
+            }
+            TxnType.NEUTRAL -> {
+                val delta = if (txn.isInflow) -txn.amountMinor else txn.amountMinor
+                db.accountDao().adjustBalance(txn.accountId, delta)
+            }
+        }
+        txn.rawSmsId?.let { rawId ->
+            db.rawSmsDao().getById(rawId)?.let { raw ->
+                if (raw.linkedTransactionId == txn.id) {
+                    db.rawSmsDao().update(raw.copy(status = RawSmsStatus.PENDING, linkedTransactionId = null))
+                }
+            }
+        }
+        db.transactionDao().deleteById(txn.id)
+    }
 
     /** Marks the raw SMS this transaction was confirmed from as CONFIRMED and links it back. */
     private suspend fun linkRawSmsIfAny(rawSmsId: Long?, txnId: Long) {

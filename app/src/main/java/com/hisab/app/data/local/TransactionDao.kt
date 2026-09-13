@@ -36,4 +36,14 @@ interface TransactionDao {
     /** Every remote id already represented locally, so a pull can skip them cheaply. */
     @Query("SELECT remoteId FROM transactions WHERE remoteId IS NOT NULL")
     suspend fun getSyncedRemoteIds(): List<Long>
+
+    /** Full rows for every already-synced transaction, so a pull can detect ones deleted server-side. */
+    @Query("SELECT * FROM transactions WHERE remoteId IS NOT NULL")
+    suspend fun getAllSynced(): List<Transaction>
+
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM transactions WHERE timestampMillis >= :startMillis AND timestampMillis < :endMillis")
+    suspend fun getBetween(startMillis: Long, endMillis: Long): List<Transaction>
 }

@@ -78,12 +78,29 @@ class SyncManager(
             accountRepository.markSynced(local, remoteId)
         }
 
+        // Already-linked accounts: pick up a name/type/icon edit made from the web dashboard.
+        // Balance is deliberately left alone here — it's derived purely from this device's own
+        // replay of transactions (see syncTransactions), not overwritten from the remote snapshot.
+        for (remote in remoteAccounts) {
+            val localMatch = accountRepository.getByRemoteId(remote.getLong("id")) ?: continue
+            val remoteName = remote.getString("name")
+            val remoteType = runCatching { AccountType.valueOf(remote.getString("type")) }.getOrDefault(localMatch.type)
+            val remoteIcon = remote.optString("icon", localMatch.icon)
+            if (localMatch.name != remoteName || localMatch.type != remoteType || localMatch.icon != remoteIcon) {
+                accountRepository.update(localMatch.copy(name = remoteName, type = remoteType, icon = remoteIcon))
+            }
+        }
+
+        // New remote-only accounts: insert locally. The seen-sets grow as we go (not a one-time
+        // snapshot) so two remote rows that happen to share a name don't both get pulled in as
+        // separate local duplicates.
         val localAll = accountRepository.getAllOnce()
-        val localRemoteIds = localAll.mapNotNull { it.remoteId }.toHashSet()
-        val localNames = localAll.map { it.name.trim().lowercase() }.toHashSet()
+        val seenRemoteIds = localAll.mapNotNull { it.remoteId }.toHashSet()
+        val seenNames = localAll.map { it.name.trim().lowercase() }.toHashSet()
         for (remote in remoteAccounts) {
             val remoteId = remote.getLong("id")
-            if (remoteId in localRemoteIds || remote.getString("name").trim().lowercase() in localNames) continue
+            val name = remote.getString("name").trim().lowercase()
+            if (remoteId in seenRemoteIds || name in seenNames) continue
             accountRepository.insertFromRemote(
                 Account(
                     name = remote.getString("name"),
@@ -93,6 +110,8 @@ class SyncManager(
                     remoteId = remoteId
                 )
             )
+            seenRemoteIds += remoteId
+            seenNames += name
         }
     }
 
@@ -162,8 +181,9 @@ class SyncManager(
             transactionRepository.markSynced(txn, remoteId)
         }
 
+        val remoteTxns = api.getArray("transactions.php").toObjectList()
         val alreadyPulled = transactionRepository.getSyncedRemoteIds().toHashSet()
-        for (remote in api.getArray("transactions.php").toObjectList()) {
+        for (remote in remoteTxns) {
             val remoteId = remote.getLong("id")
             if (remoteId in alreadyPulled) continue
 
@@ -196,6 +216,14 @@ class SyncManager(
                 }
                 null -> continue
             }
+        }
+
+        // A transaction this device already has (by remoteId) that's no longer in the server's
+        // list was deleted there (Edit Mode's Delete, or a full wipe) — mirror that deletion here
+        // too, reversing its balance effect the same way the PHP side does.
+        val remoteIdsNow = remoteTxns.map { it.getLong("id") }.toHashSet()
+        for (local in transactionRepository.getAllSynced()) {
+            if (local.remoteId !in remoteIdsNow) transactionRepository.deleteGoneFromServer(local)
         }
     }
 

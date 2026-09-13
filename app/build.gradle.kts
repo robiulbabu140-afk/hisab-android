@@ -17,7 +17,25 @@ android {
         versionName = "0.1.0"
     }
 
+    // A committed, stable debug keystore (see debug.keystore + CI's "Ensure stable debug
+    // keystore" step) so every CI build is signed with the same key. Without this, each
+    // GitHub Actions run signed with its own throwaway ~/.android/debug.keystore, which made
+    // every new APK look like a different app to Android — installing it forced an
+    // uninstall-then-install instead of an update, wiping the local Room database (and its
+    // synced accounts/transactions) on every single build.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

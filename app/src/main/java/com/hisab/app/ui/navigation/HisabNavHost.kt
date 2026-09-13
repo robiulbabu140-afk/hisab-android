@@ -80,7 +80,7 @@ fun HisabNavHost() {
             composable(Dest.CATEGORIES) { CategoriesScreen(navController) }
             composable(Dest.TRANSFER) { TransferScreen(navController) }
             composable(Dest.NEUTRAL) { NeutralScreen(navController) }
-            composable(Dest.REPORTS) { ReportsStubScreen() }
+            composable(Dest.REPORTS) { ReportsScreen() }
             composable(Dest.MORE) { MoreScreen(navController) }
             composable(Dest.SETTINGS) { SettingsScreen(navController) }
             composable(Dest.CLIENTS) { ClientsScreen(navController) }

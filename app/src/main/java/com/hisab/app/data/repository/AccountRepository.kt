@@ -15,4 +15,5 @@ class AccountRepository(private val dao: AccountDao) {
     suspend fun getUnsynced(): List<Account> = dao.getUnsynced()
     suspend fun markSynced(account: Account, remoteId: Long) = dao.update(account.copy(remoteId = remoteId))
     suspend fun insertFromRemote(account: Account): Long = dao.insert(account)
+    suspend fun update(account: Account) = dao.update(account)
 }
